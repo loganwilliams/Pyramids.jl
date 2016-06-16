@@ -1,5 +1,5 @@
 using Pyramids
-using Base.Test
+using Base.Test, Images
 
 function end_to_end(T, convert_to_arr=true)
     zone_plate = load("zone_plate.png")
