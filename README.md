@@ -10,4 +10,9 @@ A pyramid representation library for Julia.
 
 ### Installation
 
+Pyramids is not yet a registered Julia package. To install it, run the following in Julia:
+
+    Pkg.clone("https://github.com/loganwilliams/Pyramids.jl.git")
+
+
 ### Usage
