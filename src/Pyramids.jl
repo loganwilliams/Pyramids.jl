@@ -44,7 +44,7 @@ type ImagePyramid
         return deepcopy(pyr)
     end
 
-    function ImagePyramid(im::Array, t::ComplexSteerablePyramid; scale=0.5, limit=0.5, min_size=15, num_orientations=8, max_levels=23, twidth=1)
+    function ImagePyramid(im::Array, t::ComplexSteerablePyramid; scale=0.5, min_size=15, num_orientations=8, max_levels=23, twidth=1)
         this = new()
 
         this.t = ComplexSteerablePyramid()
@@ -65,10 +65,10 @@ type ImagePyramid
         return this
     end
 
-    function ImagePyramid(im::Image, t::ComplexSteerablePyramid; scale=0.5, limit=0.5, min_size=15, num_orientations=8, max_levels=23, twidth=1)
+    function ImagePyramid(im::Image, t::ComplexSteerablePyramid; scale=0.5, min_size=15, num_orientations=8, max_levels=23, twidth=1)
         im_arr = image_to_array(im)
 
-        return ImagePyramid(im_arr, t, limit=limit, scale=scale, min_size=min_size, num_orientations=num_orientations, max_levels=23, twidth=1)
+        return ImagePyramid(im_arr, t, scale=scale, min_size=min_size, num_orientations=num_orientations, max_levels=23, twidth=1)
     end
 
     function ImagePyramid(im::Array, t::GaussianPyramid; min_size=15, max_levels=23, filter=[0.0625; 0.25; 0.375; 0.25; 0.0625])
