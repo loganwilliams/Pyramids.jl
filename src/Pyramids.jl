@@ -55,7 +55,7 @@ type ImagePyramid
         h = im_dims[1]
         w = im_dims[2]
 
-        this.num_levels = min(ceil(log2(minimum([h w]))/log2(1/scale) - (log2(min_size)/log2(1.scale))),max_levels);
+        this.num_levels = min(ceil(log2(minimum([h w]))/log2(1/scale) - (log2(min_size)/log2(1/scale))),max_levels);
 
         pyr, pind, mtx, harmonics = build_complex_steerable_pyramid(im, this.num_levels, this.num_levels, order=num_orientations-1, twidth=twidth, scale=scale)
 
