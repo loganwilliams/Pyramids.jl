@@ -1,24 +1,23 @@
 using Pyramids
 using Base.Test, Images
 
-function end_to_end(T, convert_to_arr=true)
-    zone_plate = load("zone_plate.png")
+function end_to_end(T; convert_to_arr=true)
+    test_im = rand(64, 64)
 
-    if convert_to_arr
-        zone_plate = convert(Array, zone_plate)
-        zone_plate = convert(Array, separate(zone_plate))
+    if !convert_to_arr
+        zone_plate = convert(Image, test_im)
     end
 
     if typeof(T) <: ComplexSteerablePyramid
         scale = 0.5^(1/4);
-        pyramid = ImagePyramid(zone_plate, T, scale=scale, num_orientations=8, max_levels=23, min_size=15, twidth=1.0)
+        pyramid = ImagePyramid(test_im, T, scale=scale, num_orientations=8, max_levels=23, min_size=15, twidth=1.0)
     else
-        pyramid = ImagePyramid(zone_plate, T, max_levels=23, min_size=15)
+        pyramid = ImagePyramid(test_im, T, max_levels=23, min_size=15)
     end
 
-    zone_plate_recon = toimage(pyramid)
+    test_im_recon = toimage(pyramid)
 
-    return all(zone_plate_recon .- zone_plate .< 1e-4)
+    return all((test_im_recon .- test_im) .< 0.0002)
 end
 
 println("Running end-to-end image comparison test for Complex Steerable Pyramid.")
