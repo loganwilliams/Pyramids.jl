@@ -4,7 +4,7 @@ A pyramid representation library for Julia. Parts are loosely based on [MatlabPy
 
 ## Project Status
 
-[![Build Status](https://travis-ci.org/loganwilliams/Pyramids.jl.svg?branch=master)](https://travis-ci.org/loganwilliams/Pyramids.jl)
+[![Build Status](https://travis-ci.org/loganwilliams/Pyramids.jl.svg?branch=master)](https://travis-ci.org/loganwilliams/Pyramids.jl)[![Coverage Status](https://coveralls.io/repos/github/loganwilliams/Pyramids.jl/badge.svg?branch=master)](https://coveralls.io/github/loganwilliams/Pyramids.jl?branch=master)
 
 ## Documentation
 
