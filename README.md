@@ -19,7 +19,7 @@ Pyramids is not yet a registered Julia package. To install it, run the following
 
 The Pyramids library is used through the `ImagePyramid` class. To create a new `ImagePyramid`, there a several constructors that may be used of the form `ImagePyramid(im::Image, t::PyramidType)`.
 
-Subtypes of `PyramidType`s include:
+Subtypes of `PyramidType` include:
  * `GaussianPyramid`
  * `LaplacianPyramid`
  * `ComplexSteerablePyramid`
@@ -31,7 +31,7 @@ Below is an example of loading an image and converting it to an `ImagePyramid`.
     using Images, Pyramids
 
     im = load("test_im.png")
-    pyramid = ImagePyramid(im, ComplexSteerablePyramid, scale=0.75, max_levels=23)
+    pyramid = ImagePyramid(im, ComplexSteerablePyramid(), scale=0.75, max_levels=23)
 
 An `ImagePyramid` may also be created directly from an `Array`.
 
