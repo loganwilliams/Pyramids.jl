@@ -1,6 +1,6 @@
 # Pyramids.jl
 
-A pyramid representation library for Julia, loosely based on [MatlabPyrTools](http://www.cns.nyu.edu/lcv/software.php), by NYU's Laboratory for Computer Vision.
+A multi-scale image pyramid representation library for Julia, loosely based on [MatlabPyrTools](http://www.cns.nyu.edu/lcv/software.php), by NYU's Laboratory for Computer Vision.
 
 ## Project Status
 
