@@ -118,10 +118,10 @@ end
 
 println("Loading images")
 
-im1 = load("/Users/loganw/Desktop/Parallax/matched frames/parallax_0000_DSCF4573.jpg")
+im1 = load("frame_0.jpg")
 im1 = convert(Image{Lab}, float32(im1))
 
-im2 = load("/Users/loganw/Desktop/Parallax/matched frames/parallax_0001_DSCF4574.jpg")
+im2 = load("frame_1.jpg")
 im2 = convert(Image{Lab}, float32(im2))
 
 im1 = convert(Array, separate(im1))
@@ -152,5 +152,5 @@ for alpha = 0:0.2:1.0
     newLabIm = convert(Image, newLabIm)
     newLabIm.properties["colorspace"] = "Lab"
     newLabIm = convert(Image{RGB}, newLabIm)
-    save("tree_alpha_$(alpha).png", newLabIm')
+    save("interpolated_frame_$(alpha).png", newLabIm')
 end
