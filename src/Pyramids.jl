@@ -1,6 +1,6 @@
 module Pyramids
 
-using Images, Interpolations, Color
+using Images, Interpolations, Colors
 
 export ImagePyramid, PyramidType, ComplexSteerablePyramid, LaplacianPyramid, GaussianPyramid
 export subband, toimage, update_subband, update_subband!, test
@@ -104,7 +104,7 @@ type ImagePyramid
     function ImagePyramid(im::Image, t::SimplePyramid; min_size=15, max_levels=23, filter=[0.0625; 0.25; 0.375; 0.25; 0.0625])
         im_arr = image_to_array(im)
 
-        return ImagePyramid(im_arr, t, min_size=min_size, max_levels=max_leves, filter=filter)
+        return ImagePyramid(im_arr, t, min_size=min_size, max_levels=max_levels, filter=filter)
     end
 
     function ImagePyramid(pyr::Array, pind::Array{Int}, scale, t)
@@ -168,7 +168,7 @@ function update_subband!(pyramid::ImagePyramid, level, new_subband; orientation 
     return pyramid
 end
 
-"Converts a pyramid to a 2-D array (not of type `::Image`!)"
+"Converts a pyramid to a 2-D array (not of type `Image`!)"
 function toimage(pyramid::ImagePyramid)
     if typeof(pyramid.t) <: ComplexSteerablePyramid
         im = reconstruct_complex_steerable_pyramid(pyramid.pyr, pyramid.pind, scale=pyramid.scale)
@@ -187,14 +187,13 @@ end
 # Private helper functions.
 
 function image_to_array(im::Image)
-    if typeof(im) <: Color{T,3}
-        warning("ImagePyramid only supports 2D images currently. Returning luminance channel.")
-        im_lab = convert(Image{Lab}, im)
-        im_arr = convert(Array{Float64}, separate(im))[:,:,1]
-    elseif typeof(im) <: Color{T,1}
-        im_arr = convert(Array{Float64}, separate(im))
+    # Please someone tell me a better way of checking for image type.
+    if typeof(im.data[1]) <: Gray
+        im_arr = separate(convert(Array{Float64,2}, im))
     else
-        error("Unsupported image type")
+        warn("ImagePyramid only supports 2D images currently. Returning luminance channel.")
+        im_lab = convert(Image{Lab}, im)
+        im_arr = convert(Array{Float64,3}, separate(im))[:,:,1] 
     end
 
     return im_arr

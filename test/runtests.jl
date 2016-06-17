@@ -1,11 +1,11 @@
 using Pyramids
-using Base.Test, Images
+using Base.Test, Images, Colors
 
 function end_to_end(T; convert_to_arr=true)
     test_im = rand(64, 64)
 
     if !convert_to_arr
-        test_im = convert(Image, test_im)
+        test_im = convert(Image{Gray}, test_im)
     end
 
     if typeof(T) <: ComplexSteerablePyramid
