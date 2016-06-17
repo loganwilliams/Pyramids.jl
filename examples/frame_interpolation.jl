@@ -87,11 +87,6 @@ function adjust_phase(phase_delta::Array, corrected_phase_delta)
     return adjusted_phase_delta
 end
 
-# function joint_unwrap!(phase1, phase2)
-
-
-# end
-
 function blend_and_interpolate(pyramid1::ImagePyramid, pyramid2::ImagePyramid, phase_delta::ImagePyramid, alpha)
     A1 = abs(pyramid1.pyr)
     A2 = abs(pyramid2.pyr)
