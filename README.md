@@ -21,8 +21,8 @@ The Pyramids library is used through the `ImagePyramid` class. To create a new `
 
 Subtypes of `PyramidType` include:
  * The abstract type `SimplePyramid`
- ** `GaussianPyramid`
- ** `LaplacianPyramid`
+     - `GaussianPyramid`
+     - `LaplacianPyramid`
  * `ComplexSteerablePyramid`
 
 Additional parameters include the pyramid scale/slope, the maximum number of levels, number of orientation bands, and the minimum level size, as applicable. For a complete listing of parameters, view the source code.
