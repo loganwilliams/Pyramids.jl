@@ -1,6 +1,6 @@
 module Pyramids
 
-using Images, Interpolations
+using Images, Interpolations, Color
 
 export ImagePyramid, PyramidType, ComplexSteerablePyramid, LaplacianPyramid, GaussianPyramid
 export subband, toimage, update_subband, update_subband!, test

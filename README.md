@@ -1,4 +1,4 @@
-# Pyramids
+# Pyramids.jl
 
 A pyramid representation library for Julia. Parts are loosely based on [MatlabPyrTools](http://www.cns.nyu.edu/lcv/software.php), by NYU's Laboratory for Computer Vision.
 
@@ -17,14 +17,15 @@ Pyramids is not yet a registered Julia package. To install it, run the following
 
 ### Usage
 
-The Pyramids library is used through the `ImagePyramid` class. To create a new `ImagePyramid`, there a several constructors that may be used of the form `ImagePyramid(im::Image, t::PyramidType)`.
+The Pyramids library is used through the `ImagePyramid` class. To create a new `ImagePyramid`, there a several possible constructors. Most typically, they take the form `ImagePyramid(im::Image, t::PyramidType)`.
 
 Subtypes of `PyramidType` include:
- * `GaussianPyramid`
- * `LaplacianPyramid`
+ * The abstract type `SimplePyramid`
+ ** `GaussianPyramid`
+ ** `LaplacianPyramid`
  * `ComplexSteerablePyramid`
 
-Additional parameters include the scale, maximum number of levels, number of orientation bands, and minimum level size, as applicable. For a complete listing, view the source code.
+Additional parameters include the pyramid scale/slope, the maximum number of levels, number of orientation bands, and the minimum level size, as applicable. For a complete listing of parameters, view the source code.
 
 Below is an example of loading an image and converting it to an `ImagePyramid`.
 
