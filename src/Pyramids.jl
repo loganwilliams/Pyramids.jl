@@ -379,46 +379,27 @@ function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1,
 
     Xrcos, Yrcos = raisedcosine(twidth, (-twidth/2), [0 1])
 
-    # generate high frequency residual
-    # Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
-    # hi0mask = reshape(Yrcosinterpolant[log_rad], size(log_rad))
-    # hi0dft =  imdft .* hi0mask;
-
     high_residual_dft = zeros(imdft)
-    for iter in eachindex(imdft)
-        # a1 = hi0mask[iter]
-        mod_ang = (log_rad[iter] + twidth/2) / (2*twidth/pi) - pi/4
+    lo0dft = zeros(imdft)
 
+    for iter in eachindex(imdft)
+        mod_ang = (log_rad[iter] + twidth/2) / (2*twidth/pi) - pi/4
         a2 = mod_ang > 0 ? 1 : (abs(mod_ang) < pi/2) * cos(mod_ang).^2
 
-        # if abs(a1 - a2) > 1e-2
-        #     println("ERROR")
-        #     println((log_rad[iter] + twidth/2) / (2*twidth/pi) - pi/4)
-        #     println(a1)
-        #     println(a2)
-        # end
-
         high_residual_dft[iter] = imdft[iter] .* a2
+        lo0dft[iter] = imdft[iter] .* (1 - a2)
     end
 
     pyramid_bands[0] = ifft(ifftshift(high_residual_dft));
 
     Yrcos = sqrt(Yrcos)
     YIrcos = sqrt(1 - Yrcos.^2)
-    YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
-    lo0mask = reshape(YIrcosinterpolant[log_rad], size(log_rad)) # sloow
-
-  
-    lo0dft = imdft .* lo0mask
 
     for ht = height:-1:1
         Xrcos = Xrcos - log2(1/scale)
         order = num_orientations - 1
 
         cnst = (2^(2*order))*(factorial(order)^2)/(num_orientations*factorial(2*order))
-
-        Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
-        himask = reshape(Yrcosinterpolant[log_rad], size(log_rad))
 
         # loop through each orientation band
         pyramid_level = Dict{Integer, Array}()
@@ -429,7 +410,10 @@ function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1,
             for iter in eachindex(lo0dft)
                 ang = angle[iter]-pi*(b-1)/num_orientations
                 a = (abs(mod(pi+ang, 2*pi) - pi) .< pi/2) .* (2*sqrt(cnst) * (cos(ang).^order))
-                banddft[iter] = ((complex(0,-1)).^(num_orientations-1)) * lo0dft[iter] * himask[iter] * a
+
+                mod_ang = (log_rad[iter] + twidth/2) / (2*twidth/pi) - pi/4
+                high_mask = mod_ang > 0 ? 1 : (abs(mod_ang) < pi/2) * cos(mod_ang).^2
+                banddft[iter] = ((complex(0,-1)).^(num_orientations-1)) * lo0dft[iter] * high_mask * a
             end
 
             pyramid_level[b] = ifft(ifftshift(banddft))
