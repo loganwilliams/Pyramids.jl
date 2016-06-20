@@ -383,9 +383,10 @@ function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1,
     angle = broadcast(atan2, (((1:im_dims[1]) - ctr[1]) ./ (im_dims[1]/2)), (((1:im_dims[2]) - ctr[2]) ./ (im_dims[2]/2))')
     log_rad = broadcast((x,y) -> log2(sqrt(x.^2 + y.^2)), (((1:im_dims[1]) - ctr[1]) ./ (im_dims[1]/2)), (((1:im_dims[2]) - ctr[2]) ./ (im_dims[2]/2))')
     log_rad[ctr[1], ctr[2]] = log_rad[ctr[1], ctr[2]-1]
-    log_rad0 = log_rad
+    log_rad0 = copy(log_rad)
 
     Xrcos, Yrcos = raisedcosine(twidth, (-twidth/2), [0 1])
+    Xrcos0 = Xrcos
 
     Yrcos = sqrt(Yrcos)
 
@@ -465,7 +466,7 @@ function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1,
     append!(pyr, lo0_pyr[:])
     pind = [pind; lo0_size]
 
-    Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
+    Yrcosinterpolant = interpolate((Xrcos0,), Yrcos, Gridded(Linear()))
 
     hi0mask = reshape(Yrcosinterpolant[log_rad0], size(log_rad0))
     hi0dft =  imdft .* hi0mask;
