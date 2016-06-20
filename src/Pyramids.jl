@@ -353,79 +353,37 @@ end
 
 function build_complex_steerable_pyramid_level(lodft, log_rad, Xrcos, Yrcos, angleI, ht, nbands, scale, nScales, im_dims)    
     if ht <= 0
-        lo0 = ifft(ifftshift(lodft))
-        pyr = complex(real(lo0[:]))
-        pind = collect(size(lo0))'
+        
     else
-        bands = zeros(Complex, prod(size(lodft)), nbands, )
-        bind = zeros(Int, (nbands, 2))        
-        Xrcos = Xrcos - log2(1/scale)
-        lutsize = 1024
-        Xcosn = pi*(-(2*lutsize+1):(lutsize+1))/lutsize
-        order = nbands - 1
-
-        cnst = (2^(2*order))*(factorial(order)^2)/(nbands*factorial(2*order))
-
-        alfa = mod(pi+Xcosn, 2*pi) - pi
-        Ycosn = 2*sqrt(cnst) * (cos(Xcosn).^order) .* (abs(alfa) .< pi/2)
-
-        Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
-        himask = reshape(Yrcosinterpolant[log_rad], size(log_rad))
-
-        for b in 1:nbands
-            Ycosninterpolant = interpolate((Xcosn + pi*(b-1)/nbands,), Ycosn, Gridded(Linear()))
-            anglemask = reshape(Ycosninterpolant[angleI], size(angleI))
-            banddft = ((complex(0,-1)).^(nbands-1)) .* lodft .* anglemask .* himask
-            band = ifft(ifftshift(banddft))
-            bands[:,b] = band[:]
-            bind[b,:] = collect(size(band))
-        end
-
-        dims = collect(size(lodft))
-        ctr = ceil(Int, (dims+0.5)/2)
-
-        lodims = round(Int, im_dims[1:2]*scale^(nScales-ht+1))
-
-        loctr = ceil(Int, (lodims+0.5)/2)
-        lostart = ctr - loctr+1
-        loend = lostart + lodims - 1
-
-        log_rad = log_rad[lostart[1]:loend[1], lostart[2]:loend[2]]
-        angleI = angleI[lostart[1]:loend[1], lostart[2]:loend[2]]
-        lodft = lodft[lostart[1]:loend[1], lostart[2]:loend[2]]
-        YIrcos = abs(sqrt(1 - Yrcos.^2))
-
-        YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
-        lomask = reshape(YIrcosinterpolant[log_rad], size(log_rad))
-
-        lodft = lomask .* lodft
+        
 
         pyr, pind = build_complex_steerable_pyramid_level(lodft, log_rad, Xrcos, Yrcos, angleI, ht-1, nbands, scale, nScales, im_dims)
 
-        prepend!(pyr, bands[:])
-        pind = [bind; pind]
+        
+       
     end
 
     return (pyr, pind)
 end
 
 function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1, scale=0.5)
-    nbands = order + 1
+    num_orientations = order + 1
 
-    if mod(nbands, 2) == 0
-        harmonics = ((0:((nbands/2)-1))*2 + 1)'
+    if mod(num_orientations, 2) == 0
+        harmonics = ((0:((num_orientations/2)-1))*2 + 1)'
     else
-        harmonics = ((0:((nbands-1)/2))*2)'
+        harmonics = ((0:((num_orientations-1)/2))*2)'
     end
 
-    steeringmatrix = construct_steering_matrix(harmonics, pi*(0:(nbands-1))/nbands, even=true)
+    steeringmatrix = construct_steering_matrix(harmonics, pi*(0:(num_orientations-1))/num_orientations, even=true)
 
-    dims = collect(size(im))
-    ctr = ceil(Int, (dims+0.5)/2)
+    im_dims = collect(size(im))
+    ctr = ceil(Int, (im_dims+0.5)/2)
 
-    angle = broadcast(atan2, (((1:dims[1]) - ctr[1]) ./ (dims[1]/2)), (((1:dims[2]) - ctr[2]) ./ (dims[2]/2))')
-    log_rad = broadcast((x,y) -> log2(sqrt(x.^2 + y.^2)), (((1:dims[1]) - ctr[1]) ./ (dims[1]/2)), (((1:dims[2]) - ctr[2]) ./ (dims[2]/2))')
+    angle = broadcast(atan2, (((1:im_dims[1]) - ctr[1]) ./ (im_dims[1]/2)), (((1:im_dims[2]) - ctr[2]) ./ (im_dims[2]/2))')
+    log_rad = broadcast((x,y) -> log2(sqrt(x.^2 + y.^2)), (((1:im_dims[1]) - ctr[1]) ./ (im_dims[1]/2)), (((1:im_dims[2]) - ctr[2]) ./ (im_dims[2]/2))')
     log_rad[ctr[1], ctr[2]] = log_rad[ctr[1], ctr[2]-1]
+    log_rad0 = log_rad
 
     Xrcos, Yrcos = raisedcosine(twidth, (-twidth/2), [0 1])
 
@@ -440,16 +398,83 @@ function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1,
 
     lo0dft = imdft .* lo0mask
 
-    pyr, pind = build_complex_steerable_pyramid_level(lo0dft, log_rad, Xrcos, Yrcos, angle, height, nbands, scale, nScales, dims);
+    # pyr, pind = build_complex_steerable_pyramid_level(lo0dft, log_rad, Xrcos, Yrcos, angle, height, num_orientations, scale, nScales, dims);
+
+    pyr = []
+    pind = []
+
+    for ht = height:-1:1
+        bands = zeros(Complex, prod(size(lo0dft)), num_orientations, )
+        bind = zeros(Int, (num_orientations, 2))        
+        Xrcos = Xrcos - log2(1/scale)
+        lutsize = 1024
+        Xcosn = pi*(-(2*lutsize+1):(lutsize+1))/lutsize
+        order = num_orientations - 1
+
+        cnst = (2^(2*order))*(factorial(order)^2)/(num_orientations*factorial(2*order))
+
+        alfa = mod(pi+Xcosn, 2*pi) - pi
+        Ycosn = 2*sqrt(cnst) * (cos(Xcosn).^order) .* (abs(alfa) .< pi/2)
+
+        Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
+        himask = reshape(Yrcosinterpolant[log_rad], size(log_rad))
+
+        for b in 1:num_orientations
+            Ycosninterpolant = interpolate((Xcosn + pi*(b-1)/num_orientations,), Ycosn, Gridded(Linear()))
+            anglemask = reshape(Ycosninterpolant[angle], size(angle))
+            println(size(lo0dft))
+            println(size(anglemask))
+            println(size(himask))
+            banddft = ((complex(0,-1)).^(num_orientations-1)) .* lo0dft .* anglemask .* himask
+            band = ifft(ifftshift(banddft))
+            bands[:,b] = band[:]
+            bind[b,:] = collect(size(band))
+        end
+
+        dims = collect(size(lo0dft))
+        ctr = ceil(Int, (dims+0.5)/2)
+
+        lodims = round(Int, im_dims[1:2]*scale^(nScales-ht+1))
+
+        loctr = ceil(Int, (lodims+0.5)/2)
+        lostart = ctr - loctr+1
+        loend = lostart + lodims - 1
+
+        log_rad = log_rad[lostart[1]:loend[1], lostart[2]:loend[2]]
+        angle = angle[lostart[1]:loend[1], lostart[2]:loend[2]]
+        lodft = lo0dft[lostart[1]:loend[1], lostart[2]:loend[2]]
+        YIrcos = abs(sqrt(1 - Yrcos.^2))
+
+        YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
+        lomask = reshape(YIrcosinterpolant[log_rad], size(log_rad))
+
+        lo0dft = lomask .* lodft
+
+        append!(pyr, bands[:])
+        if ht == height
+            pind = bind
+        else
+            pind = [pind; bind]
+        end
+    end
+
+    lo0 = ifft(ifftshift(lo0dft))
+    lo0_pyr = complex(real(lo0[:]))
+    lo0_size = collect(size(lo0))'
+
+    append!(pyr, lo0_pyr[:])
+    pind = [pind; lo0_size]
 
     Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
 
-    hi0mask = reshape(Yrcosinterpolant[log_rad], size(log_rad))
+    hi0mask = reshape(Yrcosinterpolant[log_rad0], size(log_rad0))
     hi0dft =  imdft .* hi0mask;
     hi0 = ifft(ifftshift(hi0dft));
 
     prepend!(pyr, complex(real(hi0[:])))
     pind = [collect(size(hi0))'; pind]
+
+    pyr = convert(Array{Complex{Float64}}, pyr)
 
     return (pyr, pind, steeringmatrix, harmonics)
 end
@@ -679,23 +704,30 @@ function convert_complex_steerable_pyramid_to_real(pyr, pind; levs="all", bands=
 
         dims = pind[firstBnum, :]
         ctr = ceil(Int, (dims+0.5)/2)
+        # this is probably slow?
         ang = make_angle_grid(dims, 0, ctr)
         ang[ctr[1], ctr[2]] = -pi/2
 
         for nor = 1:num_orientations
             nband = (nsc-1)*num_orientations+nor+1
             ch = pyramid_subband(pyr, pind, nband)
+
             ang0 = pi*(nor-1)/num_orientations
             xang = mod(ang-ang0+pi, 2*pi) - pi
+
+            # this creates an angular mask
             amask = 2*(abs(xang) .< pi/2) + (abs(xang) .== pi/2)
             amask[ctr[1], ctr[2]] = 1
             amask[:,1] = 1
             amask[1,:] = 1
             
+            # and masks the fft by it
             amask = fftshift(amask)
             ch = ifft(amask.*fft(ch))
             f = 1
             ch = f * 0.5 * real(ch)
+
+            # then creates a new pyramid
             pyrTmp = [pyrTmp; ch[:]]
         end
     end
@@ -703,6 +735,7 @@ function convert_complex_steerable_pyramid_to_real(pyr, pind; levs="all", bands=
     ind2 = pyramid_subband_index(pind, nband+1)
     pyr = [pyr[ind1]; pyrTmp; pyr[ind2]]
     
+    # and returns it as a real
     return convert(Array{Float64}, real(pyr))
 end
 
