@@ -383,11 +383,11 @@ function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1,
     lo0dft = zeros(imdft)
 
     for iter in eachindex(imdft)
-        mod_ang = (log_rad[iter] + twidth/2) / (2*twidth/pi) - pi/4
-        a2 = mod_ang > 0 ? 1 : (abs(mod_ang) < pi/2) * cos(mod_ang).^2
+        scaled_radius = (log_rad[iter] + twidth/2) / (2*twidth/pi) - pi/4
+        frequency_mask = scaled_radius > 0 ? 1 : (abs(scaled_radius) < pi/2) * cos(scaled_radius).^2
 
-        high_residual_dft[iter] = imdft[iter] .* a2
-        lo0dft[iter] = imdft[iter] .* (1 - a2)
+        high_residual_dft[iter] = imdft[iter] .* frequency_mask
+        lo0dft[iter] = imdft[iter] .* (1 - frequency_mask)
     end
 
     pyramid_bands[0] = ifft(ifftshift(high_residual_dft));
@@ -408,12 +408,12 @@ function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1,
             banddft = zeros(lo0dft)
 
             for iter in eachindex(lo0dft)
-                ang = angle[iter]-pi*(b-1)/num_orientations
-                a = (abs(mod(pi+ang, 2*pi) - pi) .< pi/2) .* (2*sqrt(cnst) * (cos(ang).^order))
+                scaled_angle = angle[iter]-pi*(b-1)/num_orientations
+                angle_mask = (abs(mod(pi+scaled_angle, 2*pi) - pi) .< pi/2) .* (2*sqrt(cnst) * (cos(scaled_angle).^order))
 
-                mod_ang = (log_rad[iter] + twidth/2) / (2*twidth/pi) - pi/4
-                high_mask = mod_ang > 0 ? 1 : (abs(mod_ang) < pi/2) * cos(mod_ang).^2
-                banddft[iter] = ((complex(0,-1)).^(num_orientations-1)) * lo0dft[iter] * high_mask * a
+                scaled_radius = (log_rad[iter] + twidth/2) / (2*twidth/pi) - pi/4
+                frequency_mask = scaled_radius > 0 ? 1 : (abs(scaled_radius) < pi/2) * cos(scaled_radius).^2
+                banddft[iter] = ((complex(0,-1)).^(num_orientations-1)) * lo0dft[iter] * frequency_mask * angle_mask
             end
 
             pyramid_level[b] = ifft(ifftshift(banddft))
