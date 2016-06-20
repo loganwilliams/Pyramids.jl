@@ -39,6 +39,7 @@ type ImagePyramid
     num_orientations::Int
     num_levels::Int
     t::PyramidType
+    pyr_dict::Dict
 
     function ImagePyramid(pyr::ImagePyramid)
         return deepcopy(pyr)
@@ -57,10 +58,13 @@ type ImagePyramid
 
         this.num_levels = min(ceil(log2(minimum([h w]))/log2(1/scale) - (log2(min_size)/log2(1/scale))),max_levels);
 
-        pyr, pind, mtx, harmonics = build_complex_steerable_pyramid(im, this.num_levels, this.num_levels, order=num_orientations-1, twidth=twidth, scale=scale)
+        pyr_dict, mtx, harmonics = build_complex_steerable_pyramid(im, this.num_levels, this.num_levels, order=num_orientations-1, twidth=twidth, scale=scale)
 
-        this.pyr = pyr
-        this.pind = pind
+        # print(pyr_dict)
+
+        # this.pyr = pyr
+        # this.pind = pind
+        this.pyr_dict = pyr_dict
 
         return this
     end
@@ -367,6 +371,8 @@ function build_complex_steerable_pyramid_level(lodft, log_rad, Xrcos, Yrcos, ang
 end
 
 function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1, scale=0.5)
+    pyramid_bands = Dict{Integer, Union{Array, Dict{Integer, Array}}}()
+
     num_orientations = order + 1
 
     if mod(num_orientations, 2) == 0
@@ -399,14 +405,10 @@ function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1,
 
     lo0dft = imdft .* lo0mask
 
-    # pyr, pind = build_complex_steerable_pyramid_level(lo0dft, log_rad, Xrcos, Yrcos, angle, height, num_orientations, scale, nScales, dims);
-
     pyr = []
     pind = []
 
     for ht = height:-1:1
-        bands = zeros(Complex, prod(size(lo0dft)), num_orientations, )
-        bind = zeros(Int, (num_orientations, 2))        
         Xrcos = Xrcos - log2(1/scale)
         lutsize = 1024
         Xcosn = pi*(-(2*lutsize+1):(lutsize+1))/lutsize
@@ -420,17 +422,16 @@ function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1,
         Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
         himask = reshape(Yrcosinterpolant[log_rad], size(log_rad))
 
+        pyramid_level = Dict{Integer, Array}()
+
         for b in 1:num_orientations
             Ycosninterpolant = interpolate((Xcosn + pi*(b-1)/num_orientations,), Ycosn, Gridded(Linear()))
             anglemask = reshape(Ycosninterpolant[angle], size(angle))
-            println(size(lo0dft))
-            println(size(anglemask))
-            println(size(himask))
             banddft = ((complex(0,-1)).^(num_orientations-1)) .* lo0dft .* anglemask .* himask
-            band = ifft(ifftshift(banddft))
-            bands[:,b] = band[:]
-            bind[b,:] = collect(size(band))
+            pyramid_level[b] = ifft(ifftshift(banddft))
         end
+
+        pyramid_bands[height-ht+1] = pyramid_level
 
         dims = collect(size(lo0dft))
         ctr = ceil(Int, (dims+0.5)/2)
@@ -450,34 +451,17 @@ function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1,
         lomask = reshape(YIrcosinterpolant[log_rad], size(log_rad))
 
         lo0dft = lomask .* lodft
-
-        append!(pyr, bands[:])
-        if ht == height
-            pind = bind
-        else
-            pind = [pind; bind]
-        end
     end
 
-    lo0 = ifft(ifftshift(lo0dft))
-    lo0_pyr = complex(real(lo0[:]))
-    lo0_size = collect(size(lo0))'
-
-    append!(pyr, lo0_pyr[:])
-    pind = [pind; lo0_size]
+    pyramid_bands[height+1] = real(ifft(ifftshift(lo0dft)))
 
     Yrcosinterpolant = interpolate((Xrcos0,), Yrcos, Gridded(Linear()))
 
     hi0mask = reshape(Yrcosinterpolant[log_rad0], size(log_rad0))
     hi0dft =  imdft .* hi0mask;
-    hi0 = ifft(ifftshift(hi0dft));
+    pyramid_bands[0] = ifft(ifftshift(hi0dft));
 
-    prepend!(pyr, complex(real(hi0[:])))
-    pind = [collect(size(hi0))'; pind]
-
-    pyr = convert(Array{Complex{Float64}}, pyr)
-
-    return (pyr, pind, steeringmatrix, harmonics)
+    return (pyramid_bands, steeringmatrix, harmonics)
 end
 
 function pyramid_subband_index(pind, band)
