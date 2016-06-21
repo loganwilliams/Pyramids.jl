@@ -349,7 +349,7 @@ function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1,
     pyramid_bands[0] = ifft(ifftshift(hi0dft));
 
     YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
-    lo0mask = reshape(YIrcosinterpolant[log_rad], size(log_rad)) # sloow
+    lo0mask = reshape(YIrcosinterpolant[log_rad], size(log_rad))
 
     lo0dft = imdft .* lo0mask
 
@@ -506,7 +506,6 @@ function convert_complex_steerable_pyramid_to_real(pyramid::ImagePyramid; levs="
     for nsc in 1:num_levels
         dims = collect(size(subband(pyramid, nsc, orientation=1)))
         ctr = ceil(Int, (dims+0.5)/2)
-        # this is probably slow?
         ang = make_angle_grid(dims, 0, ctr)
         ang[ctr[1], ctr[2]] = -pi/2
 
