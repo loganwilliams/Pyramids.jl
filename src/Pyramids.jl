@@ -1,6 +1,6 @@
 module Pyramids
 
-using Images, Interpolations, Colors, ImageView
+using Images, Interpolations, Colors
 
 export ImagePyramid, PyramidType, ComplexSteerablePyramid, LaplacianPyramid, GaussianPyramid
 export subband, toimage, update_subband, update_subband!, test
@@ -34,12 +34,10 @@ end
 See the code for more information on optional arguments."""
 type ImagePyramid
     scale::Real
-    pyr::Array
-    pind::Array{Int}
-    num_orientations::Int
     num_levels::Int
+    num_orientations::Int
     t::PyramidType
-    pyr_dict::Dict
+    pyramid_bands::Dict
 
     function ImagePyramid(pyr::ImagePyramid)
         return deepcopy(pyr)
@@ -58,13 +56,9 @@ type ImagePyramid
 
         this.num_levels = min(ceil(log2(minimum([h w]))/log2(1/scale) - (log2(min_size)/log2(1/scale))),max_levels);
 
-        pyr_dict, mtx, harmonics = build_complex_steerable_pyramid(im, this.num_levels, this.num_levels, order=num_orientations-1, twidth=twidth, scale=scale)
+        pyramid_bands, mtx, harmonics = build_complex_steerable_pyramid(im, this.num_levels, this.num_levels, order=num_orientations-1, twidth=twidth, scale=scale)
 
-        # print(pyr_dict)
-
-        # this.pyr = pyr
-        # this.pind = pind
-        this.pyr_dict = pyr_dict
+        this.pyramid_bands = pyramid_bands
 
         return this
     end
@@ -78,11 +72,10 @@ type ImagePyramid
     function ImagePyramid(im::Array, t::GaussianPyramid; min_size=15, max_levels=23, filter=[0.0625; 0.25; 0.375; 0.25; 0.0625])
         this = new()
 
-        pyr, pind, num_levels = generate_gaussian_pyramid(im, min_size=min_size, max_levels=max_levels, filter=filter)
+        pyramid_bands, num_levels = generate_gaussian_pyramid(im, min_size=min_size, max_levels=max_levels, filter=filter)
 
         this.scale = 0.5
-        this.pyr = pyr
-        this.pind = pind
+        this.pyramid_bands = pyramid_bands
         this.num_orientations = 1
         this.num_levels = num_levels
         this.t = t
@@ -93,11 +86,10 @@ type ImagePyramid
     function ImagePyramid(im::Array, t::LaplacianPyramid; min_size=15, max_levels=23, filter=[0.0625; 0.25; 0.375; 0.25; 0.0625])
         this = new()
 
-        pyr, pind, num_levels = generate_laplacian_pyramid(im, min_size=min_size, max_levels=max_levels, filter=filter)
+        pyramid_bands, num_levels = generate_laplacian_pyramid(im, min_size=min_size, max_levels=max_levels, filter=filter)
 
         this.scale = 0.5
-        this.pyr = pyr
-        this.pind = pind
+        this.pyramid_bands = pyramid_bands
         this.num_orientations = 1
         this.num_levels = num_levels
         this.t = t
@@ -111,14 +103,13 @@ type ImagePyramid
         return ImagePyramid(im_arr, t, min_size=min_size, max_levels=max_levels, filter=filter)
     end
 
-    function ImagePyramid(pyr::Array, pind::Array{Int}, scale, t)
+    function ImagePyramid(pyramid_bands::Dict, scale, t, num_orientations, num_levels)
         this = new()
 
         this.scale = scale
-        this.pyr = pyr
-        this.pind = pind
-        this.num_orientations = num_orientation_bands(pind)
-        this.num_levels = pyramid_height(pind)
+        this.pyramid_bands = pyr
+        this.num_orientations = num_orientations
+        this.num_levels = num_levels
         this.t = t
 
         return this
@@ -137,39 +128,25 @@ Returns the sub-band of the `pyramid` at `level` and at `orientation.` If orient
 Level 0 is always the high frequency residual."""
 function subband(pyramid::ImagePyramid, level; orientation = ())
     if isempty(orientation)
-        band = level + 1
+        return pyramid.pyramid_bands[level]
     else
-        band = (level-1)*pyramid.num_orientations + orientation + 2
+        return pyramid.pyramid_bands[level][orientation]
     end
-
-    return pyramid_subband(pyramid.pyr, pyramid.pind, band)
-end
-
-function update_subband(pyramid::ImagePyramid, level, new_subband; orientation = ())
-    newpyramid = ImagePyramid(pyramid)
-
-    if isempty(orientation)
-        band = level + 1
-    else
-        band = (level-1)*newpyramid.num_orientations + orientation + 2
-    end
-
-    newpyr = update_pyramid_subband(newpyramid.pyr, newpyramid.pind, band, new_subband)
-    newpyramid.pyr = newpyr
-
-    return newpyramid
 end
 
 function update_subband!(pyramid::ImagePyramid, level, new_subband; orientation = ())
     if isempty(orientation)
-        band = level + 1
+        pyramid.pyramid_bands[level] = new_subband
     else
-        band = (level-1)*pyramid.num_orientations + orientation + 2
+        pyramid.pyramid_bands[level][orientation] = new_subband
     end
-
-    pyramid.pyr = update_pyramid_subband(pyramid.pyr, pyramid.pind, band, new_subband)
     
     return pyramid
+end
+
+function update_subband(pyramid::ImagePyramid, level, new_subband; orientation = ())
+    newpyramid = ImagePyramid(pyramid)
+    return update_subband!(newpyramid, level, new_subband, orientation=orientation)
 end
 
 "Converts a pyramid to a 2-D array (not of type `Image`!)"
@@ -242,33 +219,23 @@ end
 function generate_gaussian_pyramid(im; min_size=15, max_levels=23, filter=[0.0625; 0.25; 0.375; 0.25; 0.0625])
     im = convert(Array{Float64}, copy(im))
 
-    pind = collect(size(im))';
-    pyr = [];
+    pyramid_bands = Dict{Integer, Array}()
 
     im_dims = collect(size(im))
-
     num_levels = min(max_levels, ceil(Int, log2(minimum(im_dims)) - log2(min_size)))
 
     for i = 1:num_levels
-        # this is a weird hack to make the pyramid index in the same format as MatlabPyrTools.
-        # TODO: change index format to something better suited for Julia (dictionary?)
-
-        if i != 1
-            pind = [pind; collect(size(im))'];
-        end
-
-        pyr = [pyr; im[:]]
+        pyramid_bands[i-1] = im
         im = reduce(im, filter=filter)
     end
 
-    return (pyr, pind, num_levels)
+    return (pyramid_bands, num_levels)
 end
 
 function generate_laplacian_pyramid(im; min_size=15, max_levels=23, filter=[0.0625; 0.25; 0.375; 0.25; 0.0625])
     im = convert(Array{Float64}, copy(im))
 
-    pind = collect(size(im))';
-    pyr = [];
+    pyramid_bands = Dict{Integer, Array}()
 
     im_dims = collect(size(im))
 
@@ -281,19 +248,14 @@ function generate_laplacian_pyramid(im; min_size=15, max_levels=23, filter=[0.06
         next_im = expand(reduced_im)
         diff_im = im - next_im
 
-        pyr = [pyr; diff_im[:]]
-
-        if i != 1
-            pind = [pind; collect(size(diff_im))']
-        end
+        pyramid_bands[i-1] = diff_im
 
         im = reduced_im
     end
 
-    pyr = [pyr; im[:]]
-    pind = [pind; collect(size(im))']
+    pyramid_bands[num_levels] = im
 
-    return (pyr, pind, num_levels)
+    return (pyramid_bands, pind, num_levels)
 end
 
 function reconstruct_laplacian_pyramid(pyramid::ImagePyramid)
@@ -309,8 +271,6 @@ end
 
 ##############################
 # Private functions for building complex steerable pyramids.
-# Adapted from MatlabPyrTools. (https://github.com/LabForComputationalVision/matlabPyrTools)
-# This all runs significantly slower than it should, particularly the pyramid reconstruction.
 
 function construct_steering_matrix(harmonics, angles; even = true)
     numh = 2*length(harmonics) - any(harmonics .== 0)
@@ -462,35 +422,6 @@ function pyramid_subband_index(pind, band)
     return round(Int, ind):round(Int, (ind + prod(pind[band,:]) - 1))
 end
 
-function pyramid_subband(pyr, pind, band)
-    return reshape( copy(pyr[pyramid_subband_index(pind, band)]), (round(Int, pind[band,1]), round(Int, pind[band,2])))
-end
-
-function pyramid_subband(pyr_dict::Dict, band; orientation=())
-    if isempty(orientation)
-        return pyr_dict[band]
-    else
-        return pyr_dict[band][orientation]
-    end
-end
-
-function update_pyramid_subband(pyr, pind, band, newband)
-    newpyr = copy(pyr)
-    index = pyramid_subband_index(pind, band)
-    newpyr[index] = newband
-    return newpyr
-end
-
-function update_pyramid_subband(pyr_dict::Dict, band, new_subband; orientation=())
-    if isempty(orientation)
-        pyr_dict[band] = copy(new_subband)
-    else
-        pyr_dict[band][orientation] = copy(new_subband)
-    end
-
-    return pyr_dict
-end
-
 function make_angle_grid(sz, phase=0, origin=-1)
     if length(sz) == 1
         sz = [sz, sz]
@@ -510,151 +441,8 @@ function make_angle_grid(sz, phase=0, origin=-1)
     return res
 end
 
-function num_orientation_bands(pind)
-    if size(pind,1) == 2
-        nbands = 0
-    else
-        b = 3
-        while (b <= size(pind,1)) && all(pind[b,:] == pind[2,:])
-            b += 1
-        end
-
-        nbands = b - 2
-    end
-
-    return nbands
-end
-
-function pyramid_height(pind)
-    nbands = num_orientation_bands(pind)
-
-    if size(pind,1) > 2
-        ht = (size(pind,1) - 2) / nbands
-    else
-        ht = 0
-    end
-
-    return convert(Int, ht)
-end
-
-function reconstruct_steerable_pyramid_level(pyr, pind, log_rad, Xrcos, Yrcos, angle, nbands, levs, bands, scale)
-    lo_ind = nbands + 1
-    dims = convert(Array{Int}, pind[1,:])
-    ctr = ceil(Int, (dims+0.5)/2)
-
-    Xrcos = Xrcos - log2(1/scale)
-
-    if any(levs .> 1)
-        lodims = pind[1+bands[end],:]
-        loctr = ceil(Int, (lodims+0.5)/2)
-        lostart = ctr - loctr + 1
-        loend = lostart + lodims - 1
-        nlog_rad = log_rad[lostart[1]:loend[1], lostart[2]:loend[2]]
-        nangle = angle[lostart[1]:loend[1], lostart[2]:loend[2]]
-        
-        if size(pind,1) > lo_ind
-            subpyr = convert(Int, 1+sum(prod(pind[1:(lo_ind-1),:],2))):convert(Int, size(pyr, 1))
-            nresdft = reconstruct_steerable_pyramid_level(pyr[subpyr], pind[lo_ind:size(pind,1),:], nlog_rad, Xrcos, Yrcos, nangle, nbands, levs-1, bands, scale)
-        else
-            nresdft = fftshift(fft(pyramid_subband(pyr, pind, lo_ind)))
-        end
-
-        YIrcos = sqrt(abs(1 - Yrcos.^2))
-        YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
-        lomask = reshape(YIrcosinterpolant[nlog_rad], size(nlog_rad))
-
-        resdft = complex(zeros((dims[1], dims[2])))
-        resdft[lostart[1]:loend[1], lostart[2]:loend[2]] = nresdft .* lomask
-    else
-        resdft = complex(zeros((dims[1], dims[2])))
-    end
-    
-    if any(levs .== 1)
-        lutsize = 1024
-        Xcosn = pi*(-(2*lutsize+1):(lutsize+1))/lutsize;
-        order = nbands-1
-
-        cnst = (2^(2*order))*(factorial(order)^2)/(nbands*factorial(2*order))
-        Ycosn = sqrt(cnst) * (cos(Xcosn)).^order
-
-        Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
-        himask = reshape(Yrcosinterpolant[log_rad], size(log_rad))
-
-        ind = 1
-        for b in 1:nbands
-            if any(bands .== b)
-                Ycosninterpolant = interpolate((Xcosn + pi*(b-1)/nbands,), Ycosn, Gridded(Linear()))
-                anglemask = reshape(Ycosninterpolant[angle], size(angle))
-                band = reshape(pyr[ind:ind+prod(dims)-1], (dims[1], dims[2]))
-                banddft = fftshift(fft(band))
-                resdft = resdft + complex(0,1)^(nbands-1) * banddft .* anglemask .* himask
-            end
-                
-            ind = ind + prod(dims)
-        end
-    end
-
-    return resdft
-end
-
-function sub_matrix(vec, sz, offset=1)
-    vec = vec[:]
-    sz = sz[:]
-
-    if size(sz,1) != 2
-        error("Dimensions must be a 2-vector")
-    end
-
-    return reshape(vec[offset:offset+prod(sz)-1], (convert(Int, sz[1]), (convert(Int, sz[2]))))
-end
-
-
 function reconstruct_steerable_pyramid(pyr::ImagePyramid; levs="all", bands="all", twidth=1, scale=0.5)
-    # nbands = num_orientation_bands(pind)
-
-    # maxLev = 1 + pyramid_height(pind)
-
-    # if levs == "all"
-    #     levs = collect(0:maxLev)'
-    # else
-    #     if any(levs .> maxLev) || any(levs .< 0)
-    #         error("Level numbers must be in the range [0, $(maxLev)]")
-    #     end
-
-    #     levs = collect(levs[:])
-    # end
-
-    # if bands == "all"
-    #     bands = collect(1:nbands)'
-    # else
-    #     if any(bands .< 1) || any(bands .> nbands)
-    #         error("Band numbers must be in the range [1, $(nbands)]")
-    #     end
-
-    #     bands = collect(bands[:])
-    # end
-
-    
-
-    # angle = broadcast(atan2, (((1:dims[1]) - ctr[1]) ./ (dims[1]/2)), (((1:dims[2]) - ctr[2]) ./ (dims[2]/2))')
-    # log_rad = broadcast((x,y) -> log2(sqrt(x.^2 + y.^2)), (((1:dims[1]) - ctr[1]) ./ (dims[1]/2)), (((1:dims[2]) - ctr[2]) ./ (dims[2]/2))')
-    # log_rad[ctr[1], ctr[2]] = log_rad[ctr[1], ctr[2]-1]
-
-    # Xrcos, Yrcos = raisedcosine(twidth, (-twidth/2), [0 1])
-    # Yrcos = sqrt(Yrcos)
-    # YIrcos = sqrt(abs(1.0 - Yrcos.^2))
-
-    # if size(pind,1) == 2
-    #     if any(levs .== 1)
-    #         resdft = fftshift(fft(pyramid_subband(pyr, pind, 2)))
-    #     else
-    #         resdft = zeros(pind[2,:])
-    #     end
-    # else
-
-
-    
-    im_dft = fftshift(fft(pyramid_subband(pyr.pyr_dict, 0)))
+    im_dft = fftshift(fft(subband(pyr, 0)))
     dims = collect(size(im_dft))
 
     ctr = ceil(Int, (dims + 0.5)/2)
@@ -684,44 +472,34 @@ function reconstruct_steerable_pyramid(pyr::ImagePyramid; levs="all", bands="all
         Xrcos = Xrcos - log2(1/scale)
         order = pyr.num_orientations - 1
 
-        cnst = (2^(2*order))*(factorial(order)^2)/(pyr.num_orientations*factorial(2*order))
+        cnst = ((complex(0,1)).^(pyr.num_orientations-1)) * sqrt((2^(2*order))*(factorial(order)^2)/(pyr.num_orientations*factorial(2*order)))
 
         Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
         himask = reshape(Yrcosinterpolant[log_rad], size(log_rad))
         
         for orientation = 1:pyr.num_orientations
-            band_dft = fftshift(fft(pyramid_subband(pyr.pyr_dict, level, orientation=orientation)))
+            band_dft = fftshift(fft(subband(pyr, level, orientation=orientation)))
+            ang = angle-pi*(orientation-1)/pyr.num_orientations
+            angle_mask = 2 *(abs(mod(pi+ang, 2*pi) - pi) .< pi/2) .* (cnst * (cos(ang).^order))
 
-            for iter in eachindex(band_dft)
-                ang = angle[iter]-pi*(orientation-1)/pyr.num_orientations
-                a = 2 *(abs(mod(pi+ang, 2*pi) - pi) .< pi/2) .* (sqrt(cnst) * (cos(ang).^order))
-
-                band_dft[iter] = ((complex(0,1)).^(pyr.num_orientations-1)) * band_dft[iter] * himask[iter] * a
-            end     
-
-            im_dft[lostart[1]:loend[1], lostart[2]:loend[2]] += band_dft .* lomask
-
-            # view(log2(abs(im_dft))/10)
-            # sleep(0.5)
+            im_dft[lostart[1]:loend[1], lostart[2]:loend[2]] += band_dft .* lomask .* himask .* angle_mask
         end
 
         if level < pyr.num_levels
-            lodims = collect(size(pyramid_subband(pyr.pyr_dict, level+1, orientation=1)))
+            lodims = collect(size(subband(pyr, level+1, orientation=1)))
             loctr = ceil(Int, (lodims+0.5)/2)
             lostart = ctr - loctr+1
             loend = lostart + lodims - 1
 
-            log_rad = log_rad0[lostart[1]:loend[1], lostart[2]:loend[2]]
-            angle = angle0[lostart[1]:loend[1], lostart[2]:loend[2]]
+            log_rad = copy(log_rad0[lostart[1]:loend[1], lostart[2]:loend[2]])
+            angle = copy(angle0[lostart[1]:loend[1], lostart[2]:loend[2]])
         end
 
     end
 
     level = pyr.num_levels + 1
 
-    band_dft = fftshift(fft(pyramid_subband(pyr.pyr_dict, level)))
-
-    # TODO: apply frequency mask to low frequency residual
+    band_dft = fftshift(fft(subband(pyr, level)))
 
     lodims = collect(size(band_dft))
     loctr = ceil(Int, (lodims+0.5)/2)
@@ -736,42 +514,24 @@ function reconstruct_steerable_pyramid(pyr::ImagePyramid; levs="all", bands="all
 
     im_dft[lostart[1]:loend[1], lostart[2]:loend[2]] += band_dft .* lomask
 
-    # view(log2(abs(im_dft))/10)
-        # sleep(2)
-
-    #     subpyr = convert(Int, 1+prod(pind[1,:])):convert(Int, size(pyr, 1))
-    #     resdft = reconstruct_steerable_pyramid_level(pyr[subpyr], pind[2:size(pind,1),:], log_rad, Xrcos, Yrcos, angle, nbands, levs, bands, scale)
-    # end
-
-    # YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
-    # lo0mask = reshape(YIrcosinterpolant[log_rad], size(log_rad))
-    # resdft = resdft .* lo0mask
-
-    # if any(levs .== 0)
-    #     Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
-    #     hi0mask = reshape(Yrcosinterpolant[log_rad], size(log_rad))
-    #     hidft = fftshift(fft(sub_matrix(pyr, pind[1,:])))
-    #     resdft = resdft + hidft .* hi0mask
-    # end
-
-    res = real(ifft(ifftshift(im_dft)))
-    return res
+    return real(ifft(ifftshift(im_dft)))
 end
 
 # make the complex steerable pyramid real and analytic
-function convert_complex_steerable_pyramid_to_real(pyramid::ImagePyramid; levs="all", bands="all", twidth=1, scale=0.5)
+function convert_complex_steerable_pyramid_to_real(pyramid::ImagePyramid; levs="all", bands="all", twidth=1, scale=0.5)  
+    pyramid = ImagePyramid(pyramid)  
     num_levels = pyramid.num_levels
     num_orientations = pyramid.num_orientations
 
     for nsc in 1:num_levels
-        dims = collect(size(pyramid_subband(pyramid.pyr_dict, nsc, orientation=1)))
+        dims = collect(size(subband(pyramid, nsc, orientation=1)))
         ctr = ceil(Int, (dims+0.5)/2)
         # this is probably slow?
         ang = make_angle_grid(dims, 0, ctr)
         ang[ctr[1], ctr[2]] = -pi/2
 
         for nor = 1:num_orientations
-            ch = pyramid_subband(pyramid.pyr_dict, nsc, orientation=nor)
+            ch = subband(pyramid, nsc, orientation=nor)
 
             ang0 = pi*(nor-1)/num_orientations
             xang = mod(ang-ang0+pi, 2*pi) - pi
@@ -788,7 +548,7 @@ function convert_complex_steerable_pyramid_to_real(pyramid::ImagePyramid; levs="
             ch = 0.5 * real(ch)
 
             # then creates a new pyramid
-            pyramid.pyr_dict = update_pyramid_subband(pyramid.pyr_dict, nsc, ch, orientation=nor)
+            update_subband!(pyramid, nsc, ch, orientation=nor)
         end
     end
     
@@ -797,25 +557,8 @@ function convert_complex_steerable_pyramid_to_real(pyramid::ImagePyramid; levs="
 end
 
 function reconstruct_complex_steerable_pyramid(pyramid::ImagePyramid; levs="all", bands="all", twidth=1, scale=0.5)
-    pyramid = convert_complex_steerable_pyramid_to_real(pyramid, levs=levs, bands=bands, twidth=twidth, scale=scale)
-    # pyramid_bands = pyramid.pyr_dict
-
-    # # convert back to std representation
-    # pind = collect(size(pyramid_bands[0]))'
-    # pyr = convert(Array{Complex{Float64}}, pyramid_bands[0][:])
-
-    # for ht = 1:pyramid.num_levels
-    #     for n = 1:pyramid.num_orientations
-    #         append!(pyr, convert(Array{Complex{Float64}}, pyramid_bands[ht][n][:]))
-    #         pind = [pind; collect(size(pyramid_bands[ht][n]))']
-    #     end
-    # end
-
-    # append!(pyr, pyramid_bands[pyramid.num_levels+1][:])
-    # pind = [pind; collect(size(pyramid_bands[pyramid.num_levels+1]))']
-
-    res = reconstruct_steerable_pyramid(pyramid, levs=levs, bands=bands, twidth=twidth, scale=scale)
-    return res
+    real_pyramid = convert_complex_steerable_pyramid_to_real(pyramid, levs=levs, bands=bands, twidth=twidth, scale=scale)
+    return reconstruct_steerable_pyramid(real_pyramid, levs=levs, bands=bands, twidth=twidth, scale=scale)
 end
 
 end
