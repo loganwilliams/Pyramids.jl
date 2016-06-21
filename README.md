@@ -2,6 +2,8 @@
 
 A multi-scale image pyramid representation library for Julia.
 
+Currently, Pyramids.jl can create, manipulate, and reduce Gaussian pyramids, Laplacian pyramids, and complex steerable pyramids. These image representations are used for a wide variety of computer vision and computational photography algorithms.
+
 ## Project Status
 
 [![Build Status](https://travis-ci.org/loganwilliams/Pyramids.jl.svg?branch=master)](https://travis-ci.org/loganwilliams/Pyramids.jl) [![Coverage Status](https://coveralls.io/repos/github/loganwilliams/Pyramids.jl/badge.svg?branch=master)](https://coveralls.io/github/loganwilliams/Pyramids.jl?branch=master)
@@ -16,6 +18,8 @@ Pyramids is not yet a registered Julia package. To install it, run the following
     using Pyramids
 
 ### Usage
+
+While parts of the Pyramids library are adapted from MatlabPyrTools, use of the library is quite different.
 
 The Pyramids library is used through the `ImagePyramid` class. To create a new `ImagePyramid`, there a several possible constructors. Most typically, they take the form `ImagePyramid(im::Image, t::PyramidType)`.
 

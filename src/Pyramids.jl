@@ -37,7 +37,7 @@ type ImagePyramid
     num_levels::Int
     num_orientations::Int
     t::PyramidType
-    pyramid_bands::Dict
+    pyramid_bands::Dict{Integer, Union{Array, Dict{Integer, Array}}}
 
     function ImagePyramid(pyr::ImagePyramid)
         return deepcopy(pyr)
@@ -207,7 +207,6 @@ function reduce(im; filter=[0.0625; 0.25; 0.375; 0.25; 0.0625])
     return new_im[1:2:end, 1:2:end]
 end
 
-# TODO: fix the expand to upsample and filter
 function expand(im; filter=[0.0625; 0.25; 0.375; 0.25; 0.0625])
     new_im = zeros((size(im, 1)*2, size(im, 2)*2))
     new_im[1:2:end, 1:2:end] = im
@@ -497,7 +496,7 @@ function reconstruct_steerable_pyramid(pyr::ImagePyramid; levs="all", bands="all
     return real(ifft(ifftshift(im_dft)))
 end
 
-# make the complex steerable pyramid real and analytic
+# make the complex steerable pyramid real
 function convert_complex_steerable_pyramid_to_real(pyramid::ImagePyramid; levs="all", bands="all", twidth=1, scale=0.5)  
     pyramid = ImagePyramid(pyramid)  
     num_levels = pyramid.num_levels
