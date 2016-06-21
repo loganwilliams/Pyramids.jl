@@ -442,8 +442,8 @@ function make_angle_grid(sz, phase=0, origin=-1)
 end
 
 function reconstruct_steerable_pyramid(pyr::ImagePyramid; levs="all", bands="all", twidth=1, scale=0.5)
-    im_dft = fftshift(fft(subband(pyr, 0)))
-    dims = collect(size(im_dft))
+    dims = collect(size(subband(pyr, 0)))
+    im_dft = zeros(Complex{Float64}, size(subband(pyr, 0)))
 
     ctr = ceil(Int, (dims + 0.5)/2)
 
@@ -457,51 +457,9 @@ function reconstruct_steerable_pyramid(pyr::ImagePyramid; levs="all", bands="all
     Yrcos = sqrt(Yrcos)
     YIrcos = sqrt(1 - Yrcos.^2)
 
-    # TODO: apply frequency mask to high frequency residual
-    Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
-    hi0mask = reshape(Yrcosinterpolant[log_rad], size(log_rad))
-    im_dft =  im_dft .* hi0mask;
+    low_dft = fftshift(fft(subband(pyr, pyr.num_levels+1)))
 
-    lostart = [1, 1];
-    loend = dims
-
-    for level = 1:pyr.num_levels
-        YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
-        lomask = reshape(YIrcosinterpolant[log_rad], size(log_rad))
-
-        Xrcos = Xrcos - log2(1/scale)
-        order = pyr.num_orientations - 1
-
-        cnst = ((complex(0,1)).^(pyr.num_orientations-1)) * sqrt((2^(2*order))*(factorial(order)^2)/(pyr.num_orientations*factorial(2*order)))
-
-        Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
-        himask = reshape(Yrcosinterpolant[log_rad], size(log_rad))
-        
-        for orientation = 1:pyr.num_orientations
-            band_dft = fftshift(fft(subband(pyr, level, orientation=orientation)))
-            ang = angle-pi*(orientation-1)/pyr.num_orientations
-            angle_mask = 2 *(abs(mod(pi+ang, 2*pi) - pi) .< pi/2) .* (cnst * (cos(ang).^order))
-
-            im_dft[lostart[1]:loend[1], lostart[2]:loend[2]] += band_dft .* lomask .* himask .* angle_mask
-        end
-
-        if level < pyr.num_levels
-            lodims = collect(size(subband(pyr, level+1, orientation=1)))
-            loctr = ceil(Int, (lodims+0.5)/2)
-            lostart = ctr - loctr+1
-            loend = lostart + lodims - 1
-
-            log_rad = copy(log_rad0[lostart[1]:loend[1], lostart[2]:loend[2]])
-            angle = copy(angle0[lostart[1]:loend[1], lostart[2]:loend[2]])
-        end
-
-    end
-
-    level = pyr.num_levels + 1
-
-    band_dft = fftshift(fft(subband(pyr, level)))
-
-    lodims = collect(size(band_dft))
+    lodims = collect(size(low_dft))
     loctr = ceil(Int, (lodims+0.5)/2)
     lostart = ctr - loctr+1
     loend = lostart + lodims - 1
@@ -509,10 +467,52 @@ function reconstruct_steerable_pyramid(pyr::ImagePyramid; levs="all", bands="all
     log_rad = log_rad0[lostart[1]:loend[1], lostart[2]:loend[2]]
     angle = angle0[lostart[1]:loend[1], lostart[2]:loend[2]]
 
+    Xrcos = Xrcos - log2(1/scale)*pyr.num_levels
     YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
     lomask = reshape(YIrcosinterpolant[log_rad], size(log_rad))
 
-    im_dft[lostart[1]:loend[1], lostart[2]:loend[2]] += band_dft .* lomask
+    im_dft[lostart[1]:loend[1], lostart[2]:loend[2]] += low_dft .* lomask
+   
+    for level = pyr.num_levels:-1:1
+        lodims = collect(size(subband(pyr, level, orientation=1)))
+        loctr = ceil(Int, (lodims+0.5)/2)
+        lostart = ctr - loctr+1
+        loend = lostart + lodims - 1
+
+        log_rad = copy(log_rad0[lostart[1]:loend[1], lostart[2]:loend[2]])
+        angle = copy(angle0[lostart[1]:loend[1], lostart[2]:loend[2]])
+
+        Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
+        himask = reshape(Yrcosinterpolant[log_rad], size(log_rad))
+
+        Xrcos = Xrcos + log2(1/scale)
+        order = pyr.num_orientations - 1
+
+        cnst = ((complex(0,1)).^(pyr.num_orientations-1)) * sqrt((2^(2*order))*(factorial(order)^2)/(pyr.num_orientations*factorial(2*order)))
+        
+        for orientation = 1:pyr.num_orientations
+            band_dft = fftshift(fft(subband(pyr, level, orientation=orientation)))
+            ang = angle-pi*(orientation-1)/pyr.num_orientations
+            angle_mask = 2 *(abs(mod(pi+ang, 2*pi) - pi) .< pi/2) .* (cnst * (cos(ang).^order))
+
+            im_dft[lostart[1]:loend[1], lostart[2]:loend[2]] += band_dft .* himask .* angle_mask
+        end
+
+        YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
+        lomask = reshape(YIrcosinterpolant[log_rad], size(log_rad))
+
+        im_dft[lostart[1]:loend[1], lostart[2]:loend[2]] .*= lomask
+
+    end
+
+    level = pyr.num_levels + 1
+
+    Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
+    hi0mask = reshape(Yrcosinterpolant[log_rad0], size(log_rad))
+    im_dft += fftshift(fft(subband(pyr, 0))) .* hi0mask;
+
+
+    
 
     return real(ifft(ifftshift(im_dft)))
 end
