@@ -255,7 +255,7 @@ function generate_laplacian_pyramid(im; min_size=15, max_levels=23, filter=[0.06
 
     pyramid_bands[num_levels] = im
 
-    return (pyramid_bands, pind, num_levels)
+    return (pyramid_bands, num_levels)
 end
 
 function reconstruct_laplacian_pyramid(pyramid::ImagePyramid)
@@ -404,24 +404,6 @@ function build_complex_steerable_pyramid(im, height, nScales; order=3, twidth=1,
     return (pyramid_bands, steeringmatrix, harmonics)
 end
 
-function pyramid_subband_index(pind, band)
-    if (band > size(pind,1)) || (band < 1)
-        error("band must be between 1 and number of pyramid bands ($(size(pind,1))).")
-    end
-
-    if size(pind, 2) != 2
-        error("pind must be an Nx2 matrix indicating the size of the pyramid subbands")
-    end
-
-    ind = 1
-
-    for l in 1:(band-1)
-        ind = ind + prod(pind[l,:])
-    end
-
-    return round(Int, ind):round(Int, (ind + prod(pind[band,:]) - 1))
-end
-
 function make_angle_grid(sz, phase=0, origin=-1)
     if length(sz) == 1
         sz = [sz, sz]
@@ -457,6 +439,7 @@ function reconstruct_steerable_pyramid(pyr::ImagePyramid; levs="all", bands="all
     Yrcos = sqrt(Yrcos)
     YIrcos = sqrt(1 - Yrcos.^2)
 
+    # Start with low frequency residual
     low_dft = fftshift(fft(subband(pyr, pyr.num_levels+1)))
 
     lodims = collect(size(low_dft))
@@ -473,6 +456,7 @@ function reconstruct_steerable_pyramid(pyr::ImagePyramid; levs="all", bands="all
 
     im_dft[lostart[1]:loend[1], lostart[2]:loend[2]] += low_dft .* lomask
    
+    # Accumulate mid-bamds
     for level = pyr.num_levels:-1:1
         lodims = collect(size(subband(pyr, level, orientation=1)))
         loctr = ceil(Int, (lodims+0.5)/2)
@@ -501,18 +485,14 @@ function reconstruct_steerable_pyramid(pyr::ImagePyramid; levs="all", bands="all
         YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
         lomask = reshape(YIrcosinterpolant[log_rad], size(log_rad))
 
+        # Everything must be scaled by the low-frequency mask
         im_dft[lostart[1]:loend[1], lostart[2]:loend[2]] .*= lomask
-
     end
 
-    level = pyr.num_levels + 1
-
+    # Add high frequency residual
     Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
     hi0mask = reshape(Yrcosinterpolant[log_rad0], size(log_rad))
     im_dft += fftshift(fft(subband(pyr, 0))) .* hi0mask;
-
-
-    
 
     return real(ifft(ifftshift(im_dft)))
 end

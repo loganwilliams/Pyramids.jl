@@ -17,15 +17,13 @@ function end_to_end(T; convert_to_arr=true)
 
     test_im_recon = toimage(pyramid)
 
-    println(maximum(test_im_recon - test_im))
-
     return all((test_im_recon .- test_im) .< 0.0002)
 end
 
 println("Running end-to-end image comparison test for Complex Steerable Pyramid.")
- end_to_end(ComplexSteerablePyramid())
+@test end_to_end(ComplexSteerablePyramid())
 println("\twithout array conversion")
- end_to_end(ComplexSteerablePyramid(), convert_to_arr=false)
+@test end_to_end(ComplexSteerablePyramid(), convert_to_arr=false)
 
 println("Running end-to-end image comparison test for Gaussian Pyramid.")
 @test end_to_end(GaussianPyramid())
