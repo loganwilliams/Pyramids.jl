@@ -37,7 +37,7 @@ type ImagePyramid
     num_levels::Int
     num_orientations::Int
     t::PyramidType
-    pyramid_bands::Dict{Integer, Union{Array, Dict{Integer, Array}}}
+    pyramid_bands::Dict
 
     function ImagePyramid(pyr::ImagePyramid)
         return deepcopy(pyr)
@@ -103,11 +103,11 @@ type ImagePyramid
         return ImagePyramid(im_arr, t, min_size=min_size, max_levels=max_levels, filter=filter)
     end
 
-    function ImagePyramid(pyramid_bands::Dict, scale, t, num_orientations, num_levels)
+    function ImagePyramid(pyramid_bands::Dict, scale, t, num_levels, num_orientations)
         this = new()
 
         this.scale = scale
-        this.pyramid_bands = pyr
+        this.pyramid_bands = pyramid_bands
         this.num_orientations = num_orientations
         this.num_levels = num_levels
         this.t = t
@@ -136,9 +136,9 @@ end
 
 function update_subband!(pyramid::ImagePyramid, level, new_subband; orientation = ())
     if isempty(orientation)
-        pyramid.pyramid_bands[level] = new_subband
+        pyramid.pyramid_bands[level] = copy(new_subband)
     else
-        pyramid.pyramid_bands[level][orientation] = new_subband
+        pyramid.pyramid_bands[level][orientation] = copy(new_subband)
     end
     
     return pyramid

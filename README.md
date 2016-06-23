@@ -19,7 +19,7 @@ Pyramids is not yet a registered Julia package. To install it, run the following
 
 ### Usage
 
-While parts of the Pyramids library are adapted from MatlabPyrTools, use of the library is quite different.
+While parts of the Pyramids library are adapted from ![matlabPyrTools](http://www.cns.nyu.edu/lcv/software.php), use of the library is quite different.
 
 The Pyramids library is used through the `ImagePyramid` class. To create a new `ImagePyramid`, there a several possible constructors. Most typically, they take the form `ImagePyramid(im::Image, t::PyramidType)`.
 

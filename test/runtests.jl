@@ -33,4 +33,10 @@ println("\twithout array conversion")
 println("Running end-to-end image comparison test for Laplacian Pyramid.")
 @test end_to_end(LaplacianPyramid())
 
+# TODO:
+#    Test pyramid copying
+#       Test that pyramid levels don't unexpectedly change
+#    Test subband editing
+#    Test another scale factor
+
 println("Tests passing.")
