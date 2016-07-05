@@ -12,9 +12,9 @@ Currently, Pyramids.jl can create, manipulate, and reduce Gaussian pyramids, Lap
 
 ### Installation
 
-Pyramids is not yet a registered Julia package. To install it, run the following in Julia:
+To install and begin using Pyramids, run the following in Julia:
 
-    Pkg.clone("https://github.com/loganwilliams/Pyramids.jl.git")
+    Pkg.add("Pyramids")
     using Pyramids
 
 ### Usage
