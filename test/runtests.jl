@@ -1,13 +1,7 @@
 using Pyramids
 using Base.Test, Images, Colors
 
-function end_to_end(T; convert_to_arr=true)
-    test_im = rand(128, 128)
-
-    if !convert_to_arr
-        test_im = convert(Image{Gray}, test_im)
-    end
-
+function end_to_end(test_im, T)
     if typeof(T) <: ComplexSteerablePyramid
         scale = 0.5^(1/4);
         pyramid = ImagePyramid(test_im, T, scale=scale, num_orientations=8, max_levels=23, min_size=15, twidth=1.0)
@@ -20,18 +14,16 @@ function end_to_end(T; convert_to_arr=true)
     return all((test_im_recon .- test_im) .< 0.0002)
 end
 
+rand_im = rand(128, 128)
+
 println("Running end-to-end image comparison test for Complex Steerable Pyramid.")
-@test end_to_end(ComplexSteerablePyramid())
-println("\twithout array conversion")
-@test end_to_end(ComplexSteerablePyramid(), convert_to_arr=false)
+@test end_to_end(rand_im, ComplexSteerablePyramid())
 
 println("Running end-to-end image comparison test for Gaussian Pyramid.")
-@test end_to_end(GaussianPyramid())
-println("\twithout array conversion")
-@test end_to_end(GaussianPyramid(), convert_to_arr=false)
+@test end_to_end(rand_im, GaussianPyramid())
 
 println("Running end-to-end image comparison test for Laplacian Pyramid.")
-@test end_to_end(LaplacianPyramid())
+@test end_to_end(rand_im, LaplacianPyramid())
 
 # TODO:
 #    Test pyramid copying

@@ -21,7 +21,7 @@ To install and begin using Pyramids, run the following in Julia:
 
 While parts of the Pyramids library are adapted from [matlabPyrTools](http://www.cns.nyu.edu/lcv/software.php), use of the library is quite different. For a more direct port of matlabPyrTools, look at [juliaPyrTools](https://github.com/rcrandall/JuliaPyrTools).
 
-The Pyramids library is used through the `ImagePyramid` class. To create a new `ImagePyramid`, there a several possible constructors. Most typically, they take the form `ImagePyramid(im::Image, t::PyramidType)`.
+The Pyramids library is used through the `ImagePyramid` class. To create a new `ImagePyramid`, there a several possible constructors. Most typically, they take the form `ImagePyramid(im::Array, t::PyramidType)`.
 
 Subtypes of `PyramidType` include:
  * The abstract type `SimplePyramid`
@@ -35,10 +35,8 @@ Below is an example of loading an image and converting it to an `ImagePyramid`.
 
     using Images, Pyramids
 
-    im = load("test_im.png")
+    im = real.(load("cameraman.png"))
     pyramid = ImagePyramid(im, ComplexSteerablePyramid(), scale=0.75, max_levels=23)
-
-An `ImagePyramid` may also be created directly from an `Array`.
 
 To manipulate an `ImagePyramid`, the `subband` and `update_subband` functions may be used.
 

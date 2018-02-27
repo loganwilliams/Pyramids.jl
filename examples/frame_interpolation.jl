@@ -54,7 +54,7 @@ function shift_correction(phi_delta::ImagePyramid; shift_limit=0.5)
                     end
                 end
             else
-                phi_l[abs(phi_l) .> phi_limit] = 0
+                phi_l[abs.(phi_l) .> phi_limit] = 0
             end
 
             update_subband!(corrected_phase_delta, level, phi_l, orientation=orientation)
@@ -100,7 +100,7 @@ function blend_and_interpolate(pyramid1::ImagePyramid, pyramid2::ImagePyramid, p
 
     for l = 1:pyramid1.num_levels
         for o = 1:pyramid1.num_orientations
-            new_band = ((1 - alpha) * abs(subband(pyramid1, l, orientation=o)) + alpha * abs(subband(pyramid2, l, orientation=o))) .* exp(complex(0,1) * (angle(subband(pyramid1, l, orientation=o)) + alpha * subband(phase_delta, l, orientation=o)))
+            new_band = ((1 - alpha) * abs.(subband(pyramid1, l, orientation=o)) + alpha * abs.(subband(pyramid2, l, orientation=o))) .* exp(complex(0,1) * (angle.(subband(pyramid1, l, orientation=o)) + alpha * subband(phase_delta, l, orientation=o)))
             update_subband!(blended_pyramid, l, new_band, orientation=o)
         end
     end
@@ -122,13 +122,13 @@ end
 function phase_difference(pyramid1::ImagePyramid, pyramid2::ImagePyramid)
     phase_bands = Dict{Int, Union{Array,Dict{Int, Array}}}()
 
-    phase_bands[0] = angle(subband(pyramid2, 0)) - angle(subband(pyramid1, 0))
+    phase_bands[0] = angle.(subband(pyramid2, 0)) - angle.(subband(pyramid1, 0))
 
     for l = 1:pyramid1.num_levels
         this_band = Dict{Int, Array}()
 
         for o = 1:pyramid1.num_orientations
-            this_band[o] = angle(subband(pyramid2, l, orientation=o)) - angle(subband(pyramid1, l, orientation=o))
+            this_band[o] = angle.(subband(pyramid2, l, orientation=o)) - angle.(subband(pyramid1, l, orientation=o))
         end
 
         phase_bands[l] = copy(this_band)
@@ -139,17 +139,17 @@ end
 
 println("Loading images")
 
+# convert to LAB, extract the L channel as a 1D array and process it
+# update documentation
+
 im1 = load("frame_0.jpg")
-im1 = convert(Image{Lab}, float32(im1))
+im1 = channelview(Lab.(im1))
 
 im2 = load("frame_1.jpg")
-im2 = convert(Image{Lab}, float32(im2))
+im2 = channelview(Lab.(im2))
 
-im1 = convert(Array, separate(im1))
-im2 = convert(Array, separate(im2))
-
-L1 = im1[:,:,1]
-L2 = im2[:,:,1]
+L1 = im1[1,:,:]
+L2 = im2[1,:,:]
 
 println("Converting images to complex steerable pyramids")
 
@@ -166,12 +166,12 @@ for alpha = 0:0.2:1.0
     newim = toimage(newpyr)
 
     newLabIm = zeros(im1)
-    newLabIm[:,:,1] = newim
-    newLabIm[:,:,2] = (1 - alpha) * im1[:,:,2] + alpha * im2[:,:,2]
-    newLabIm[:,:,3] = (1 - alpha) * im1[:,:,3] + alpha * im2[:,:,3]
+    newLabIm[1,:,:] = newim
+    newLabIm[2,:,:] = (1 - alpha) * im1[2,:,:] + alpha * im2[2,:,:]
+    newLabIm[3,:,:] = (1 - alpha) * im1[3,:,:] + alpha * im2[3,:,:]
 
-    newLabIm = convert(Image, newLabIm)
-    newLabIm.properties["colorspace"] = "Lab"
-    newLabIm = convert(Image{RGB}, newLabIm)
-    save("interpolated_frame_$(alpha).png", newLabIm')
+    newLabIm = colorview(Lab, newLabIm)
+    rgbIm = RGB.(newLabIm)
+    save("interpolated_frame_$(alpha).png", rgbIm)
 end
+
