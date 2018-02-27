@@ -1,12 +1,8 @@
 using Pyramids
 using Base.Test, Images, Colors
 
-function end_to_end(T; convert_to_arr=true)
+function end_to_end(T)
     test_im = rand(128, 128)
-
-    if !convert_to_arr
-        test_im = convert(Image{Gray}, test_im)
-    end
 
     if typeof(T) <: ComplexSteerablePyramid
         scale = 0.5^(1/4);
@@ -22,13 +18,9 @@ end
 
 println("Running end-to-end image comparison test for Complex Steerable Pyramid.")
 @test end_to_end(ComplexSteerablePyramid())
-println("\twithout array conversion")
-@test end_to_end(ComplexSteerablePyramid(), convert_to_arr=false)
 
 println("Running end-to-end image comparison test for Gaussian Pyramid.")
 @test end_to_end(GaussianPyramid())
-println("\twithout array conversion")
-@test end_to_end(GaussianPyramid(), convert_to_arr=false)
 
 println("Running end-to-end image comparison test for Laplacian Pyramid.")
 @test end_to_end(LaplacianPyramid())
