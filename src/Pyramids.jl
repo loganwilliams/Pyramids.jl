@@ -318,14 +318,14 @@ function build_complex_steerable_pyramid(im,
 
     # generate high frequency residual
     Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()) )
-    Yrcosinterpolant_ext = extrapolate(Yrcosinterpolant,Periodic())
+    Yrcosinterpolant_ext = extrapolate(Yrcosinterpolant,Flat())
     hi0mask = map(Yrcosinterpolant_ext,log_rad)
     hi0dft =  imdft .* hi0mask;
 
     pyramid_bands[0] = ifft(ifftshift(hi0dft));
 
     YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
-    YIrcosinterpolant_ext = extrapolate(YIrcosinterpolant,Periodic())
+    YIrcosinterpolant_ext = extrapolate(YIrcosinterpolant,Flat())
     lo0mask = map(YIrcosinterpolant_ext,log_rad)
     lo0dft = imdft .* lo0mask
 
@@ -336,7 +336,7 @@ function build_complex_steerable_pyramid(im,
         cnst = (2^(2*order))*(factorial(order)^2)/(num_orientations*factorial(2*order))
 
         Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
-        Yrcosinterpolant_ext = extrapolate(Yrcosinterpolant,Periodic())
+        Yrcosinterpolant_ext = extrapolate(Yrcosinterpolant,Flat())
         himask = map(Yrcosinterpolant_ext,log_rad)
 
         # loop through each orientation band
@@ -371,7 +371,7 @@ function build_complex_steerable_pyramid(im,
         YIrcos = @. abs(sqrt(1 - Yrcos^2))
 
         YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
-        YIrcosinterpolant_ext = extrapolate(YIrcosinterpolant,Periodic())
+        YIrcosinterpolant_ext = extrapolate(YIrcosinterpolant,Flat())
         lomask = map(YIrcosinterpolant_ext,log_rad)
 
         lo0dft = lomask .* lodft
@@ -435,7 +435,7 @@ function reconstruct_steerable_pyramid(pyr::ImagePyramid;
 
     Xrcos = Xrcos .- (log2(1/scale)*pyr.num_levels)
     YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
-    YIrcosinterpolant_ext = extrapolate(YIrcosinterpolant,Periodic())
+    YIrcosinterpolant_ext = extrapolate(YIrcosinterpolant,Flat())
     lomask = map(YIrcosinterpolant_ext,log_rad)
 
     im_dft[lostart[1]:loend[1], lostart[2]:loend[2]] += low_dft .* lomask
@@ -451,7 +451,7 @@ function reconstruct_steerable_pyramid(pyr::ImagePyramid;
         angle = copy(angle0[lostart[1]:loend[1], lostart[2]:loend[2]])
 
         Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()))
-        Yrcosinterpolant_ext = extrapolate(Yrcosinterpolant,Periodic())
+        Yrcosinterpolant_ext = extrapolate(Yrcosinterpolant,Flat())
         himask = map(Yrcosinterpolant_ext,log_rad)
 
         Xrcos = Xrcos .+ log2(1/scale)
@@ -472,7 +472,7 @@ function reconstruct_steerable_pyramid(pyr::ImagePyramid;
         end
 
         YIrcosinterpolant = interpolate((Xrcos,), YIrcos, Gridded(Linear()))
-        YIrcosinterpolant_ext = extrapolate(YIrcosinterpolant,Periodic())
+        YIrcosinterpolant_ext = extrapolate(YIrcosinterpolant,Flat())
         lomask = map(YIrcosinterpolant_ext,log_rad)
 
         # Everything must be scaled by the low-frequency mask
@@ -481,7 +481,7 @@ function reconstruct_steerable_pyramid(pyr::ImagePyramid;
 
     # Add high frequency residual
     Yrcosinterpolant = interpolate((Xrcos,), Yrcos, Gridded(Linear()) )
-    Yrcosinterpolant_ext = extrapolate(Yrcosinterpolant,Periodic())
+    Yrcosinterpolant_ext = extrapolate(Yrcosinterpolant,Flat())
     hi0mask = map(Yrcosinterpolant_ext,log_rad)
     im_dft += fftshift(fft(subband(pyr, 0))) .* hi0mask;
 
