@@ -1,5 +1,5 @@
+using Test, Images, Colors
 using Pyramids
-using Base.Test, Images, Colors
 
 function end_to_end(test_im, T)
     if typeof(T) <: ComplexSteerablePyramid
@@ -15,20 +15,19 @@ function end_to_end(test_im, T)
 end
 
 rand_im = rand(128, 128)
+@testset begin
+    println("Running end-to-end image comparison test for Complex Steerable Pyramid.")
+    @test end_to_end(rand_im, ComplexSteerablePyramid())
 
-println("Running end-to-end image comparison test for Complex Steerable Pyramid.")
-@test end_to_end(rand_im, ComplexSteerablePyramid())
+    println("Running end-to-end image comparison test for Gaussian Pyramid.")
+    @test end_to_end(rand_im, GaussianPyramid())
 
-println("Running end-to-end image comparison test for Gaussian Pyramid.")
-@test end_to_end(rand_im, GaussianPyramid())
-
-println("Running end-to-end image comparison test for Laplacian Pyramid.")
-@test end_to_end(rand_im, LaplacianPyramid())
+    println("Running end-to-end image comparison test for Laplacian Pyramid.")
+    @test end_to_end(rand_im, LaplacianPyramid())
+end
 
 # TODO:
 #    Test pyramid copying
 #       Test that pyramid levels don't unexpectedly change
 #    Test subband editing
 #    Test another scale factor
-
-println("Tests passing.")
